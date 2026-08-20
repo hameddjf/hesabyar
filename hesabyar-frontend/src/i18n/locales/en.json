@@ -1,0 +1,158 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "invoices": "Invoices",
+    "payments": "Payments",
+    "checks": "Checks",
+    "expenses": "Expenses",
+    "clients": "Clients",
+    "employees": "Employees",
+    "partners": "Partners",
+    "products": "Products",
+    "reports": "Reports",
+    "settings": "Settings",
+    "receipts": "Receipts",
+    "banking": "Banking",
+    "holo": "Holo Sync",
+    "oversight": "Oversight"
+  },
+  "nav_group": {
+    "main": "Menu",
+    "management": "Management",
+    "analytics": "Analytics",
+    "owner": "Owner"
+  },
+  "common": {
+    "search": "Search...",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "export": "Export",
+    "filter": "Filter",
+    "all": "All",
+    "actions": "Actions",
+    "view_all": "View all",
+    "view_report": "View report",
+    "loading": "Loading...",
+    "no_data": "No data found",
+    "date": "Date",
+    "amount": "Amount",
+    "status": "Status",
+    "name": "Name",
+    "description": "Description",
+    "total": "Total",
+    "from": "From",
+    "to": "To"
+  },
+  "status": {
+    "paid": "Paid",
+    "pending": "Pending",
+    "overdue": "Overdue",
+    "draft": "Draft",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "monthly_revenue": "Monthly Revenue",
+    "open_invoices": "Open Invoices",
+    "monthly_expenses": "Monthly Expenses",
+    "active_clients": "Active Clients",
+    "revenue_overview": "Revenue Overview",
+    "recent_invoices": "Recent Invoices",
+    "vs_last_month": "vs last month",
+    "overdue_count": "{{count}} overdue invoices",
+    "new_clients": "{{count}} new clients"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "subtitle": "Manage and track invoices",
+    "new": "New Invoice",
+    "number": "Invoice #",
+    "client": "Client",
+    "issue_date": "Issue Date",
+    "due_date": "Due Date",
+    "total": "Total",
+    "paid": "Paid",
+    "pending": "Pending",
+    "overdue": "Overdue",
+    "draft": "Draft"
+  },
+  "expenses": {
+    "title": "Expenses",
+    "subtitle": "Record and manage expenses",
+    "new": "New Expense",
+    "category": "Category",
+    "receipt": "Receipt"
+  },
+  "clients": {
+    "title": "Clients",
+    "subtitle": "Manage clients and companies",
+    "new": "New Client",
+    "company": "Company",
+    "contact": "Contact",
+    "phone": "Phone",
+    "email": "Email"
+  },
+  "employees": {
+    "title": "Employees",
+    "subtitle": "Manage staff and payroll",
+    "new": "New Employee",
+    "position": "Position",
+    "department": "Department",
+    "salary": "Salary",
+    "hire_date": "Hire Date"
+  },
+  "payments": {
+    "title": "Payments",
+    "subtitle": "Payment and receipt history",
+    "new": "New Payment",
+    "type": "Type",
+    "method": "Payment Method",
+    "reference": "Reference #"
+  },
+  "checks": {
+    "subtitle": "Received and issued checks, and clearance status tracking"
+  },
+  "products": {
+    "title": "Products",
+    "subtitle": "Manage products and services",
+    "new": "New Product",
+    "sku": "SKU",
+    "price": "Price",
+    "unit": "Unit"
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Financial analytics and stats",
+    "profit_loss": "Profit & Loss",
+    "cash_flow": "Cash Flow",
+    "tax": "Tax"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Account and system settings",
+    "company": "Company Info",
+    "profile": "Profile",
+    "users": "Users",
+    "billing": "Billing",
+    "language": "Language",
+    "theme": "Theme"
+  },
+  "receipts": {
+    "title": "Receipts",
+    "subtitle": "History of all received payments",
+    "new": "New Receipt"
+  },
+  "banking": {
+    "title": "Banking Accounts",
+    "subtitle": "Manage company accounts and cards"
+  },
+  "oversight": {
+    "title": "Owner Oversight",
+    "subtitle": "Activity monitoring & access management"
+  }
+}

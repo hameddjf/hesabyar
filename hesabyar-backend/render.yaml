@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: hesabyar-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    disk:
+      name: hesabyar-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_JWT_SECRET
+        generateValue: true
+      - key: ADMIN_ROUTE_SECRET
+        generateValue: true
+      - key: DB_PATH
+        value: ./data/hesabyar.sqlite
+      - key: CORS_ORIGIN
+        value: "*"

@@ -1,0 +1,13 @@
+{
+  "name": "hesabyar-site-audit",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "اسکریپت مستقل سلامت‌سنجی وب‌سایت حسابیار (بک‌اند + فرانت + امنیت) — جدا از پروژه‌ی اصلی، هیچ وابستگی‌ای بهش نداره",
+  "scripts": {
+    "audit": "node healthcheck.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

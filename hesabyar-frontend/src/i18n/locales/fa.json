@@ -1,0 +1,158 @@
+{
+  "nav": {
+    "dashboard": "داشبورد",
+    "invoices": "فاکتورها",
+    "payments": "پرداختی‌ها",
+    "checks": "چک‌ها",
+    "expenses": "هزینه‌ها",
+    "clients": "مشتریان",
+    "employees": "کارمندان",
+    "partners": "شرکا",
+    "products": "محصولات",
+    "reports": "گزارشات",
+    "settings": "تنظیمات",
+    "receipts": "دریافتی‌ها",
+    "banking": "حساب‌های بانکی",
+    "holo": "یکپارچه هلو",
+    "oversight": "نظارت مالک"
+  },
+  "nav_group": {
+    "main": "منو",
+    "management": "مدیریت",
+    "analytics": "تحلیل",
+    "owner": "مالک"
+  },
+  "common": {
+    "search": "جستجو...",
+    "add": "افزودن",
+    "edit": "ویرایش",
+    "delete": "حذف",
+    "save": "ذخیره",
+    "cancel": "انصراف",
+    "confirm": "تأیید",
+    "export": "خروجی",
+    "filter": "فیلتر",
+    "all": "همه",
+    "actions": "عملیات",
+    "view_all": "مشاهده همه",
+    "view_report": "مشاهده گزارش",
+    "loading": "در حال بارگذاری...",
+    "no_data": "داده‌ای یافت نشد",
+    "date": "تاریخ",
+    "amount": "مبلغ",
+    "status": "وضعیت",
+    "name": "نام",
+    "description": "توضیحات",
+    "total": "جمع کل",
+    "from": "از",
+    "to": "تا"
+  },
+  "status": {
+    "paid": "پرداخت‌شده",
+    "pending": "در انتظار",
+    "overdue": "سررسید گذشته",
+    "draft": "پیش‌نویس",
+    "active": "فعال",
+    "inactive": "غیرفعال"
+  },
+  "dashboard": {
+    "title": "داشبورد",
+    "monthly_revenue": "درآمد ماهانه",
+    "open_invoices": "فاکتورهای باز",
+    "monthly_expenses": "هزینه‌های ماه",
+    "active_clients": "مشتریان فعال",
+    "revenue_overview": "نمای کلی درآمد",
+    "recent_invoices": "آخرین فاکتورها",
+    "vs_last_month": "نسبت به ماه گذشته",
+    "overdue_count": "{{count}} فاکتور سررسید گذشته",
+    "new_clients": "{{count}} مشتری جدید"
+  },
+  "invoices": {
+    "title": "فاکتورها",
+    "subtitle": "مدیریت و پیگیری فاکتورها",
+    "new": "فاکتور جدید",
+    "number": "شماره فاکتور",
+    "client": "مشتری",
+    "issue_date": "تاریخ صدور",
+    "due_date": "سررسید",
+    "total": "مبلغ کل",
+    "paid": "پرداخت‌شده",
+    "pending": "در انتظار",
+    "overdue": "سررسید گذشته",
+    "draft": "پیش‌نویس"
+  },
+  "expenses": {
+    "title": "هزینه‌ها",
+    "subtitle": "ثبت و مدیریت هزینه‌ها",
+    "new": "هزینه جدید",
+    "category": "دسته‌بندی",
+    "receipt": "رسید"
+  },
+  "clients": {
+    "title": "مشتریان",
+    "subtitle": "مدیریت مشتریان و شرکت‌ها",
+    "new": "مشتری جدید",
+    "company": "شرکت",
+    "contact": "نماینده",
+    "phone": "تلفن",
+    "email": "ایمیل"
+  },
+  "employees": {
+    "title": "کارمندان",
+    "subtitle": "مدیریت پرسنل و حقوق",
+    "new": "کارمند جدید",
+    "position": "سمت",
+    "department": "بخش",
+    "salary": "حقوق",
+    "hire_date": "تاریخ استخدام"
+  },
+  "payments": {
+    "title": "پرداخت‌ها",
+    "subtitle": "سابقه پرداخت‌ها و دریافت‌ها",
+    "new": "پرداخت جدید",
+    "type": "نوع",
+    "method": "روش پرداخت",
+    "reference": "شماره مرجع"
+  },
+  "checks": {
+    "subtitle": "چک‌های دریافتنی و پرداختنی و پیگیری وضعیت وصول"
+  },
+  "products": {
+    "title": "محصولات",
+    "subtitle": "مدیریت محصولات و خدمات",
+    "new": "محصول جدید",
+    "sku": "کد محصول",
+    "price": "قیمت",
+    "unit": "واحد"
+  },
+  "reports": {
+    "title": "گزارشات",
+    "subtitle": "تحلیل مالی و آماری",
+    "profit_loss": "سود و زیان",
+    "cash_flow": "جریان نقدی",
+    "tax": "مالیات"
+  },
+  "settings": {
+    "title": "تنظیمات",
+    "subtitle": "تنظیمات حساب و سیستم",
+    "company": "اطلاعات شرکت",
+    "profile": "پروفایل",
+    "users": "کاربران",
+    "billing": "صورت‌حساب",
+    "language": "زبان",
+    "theme": "پوسته"
+  },
+  "receipts": {
+    "title": "دریافتی‌ها",
+    "subtitle": "سابقه تمام مبالغ دریافت‌شده",
+    "new": "دریافتی جدید"
+  },
+  "banking": {
+    "title": "حساب‌های بانکی",
+    "subtitle": "مدیریت حساب‌ها و کارت‌های شرکت"
+  },
+  "oversight": {
+    "title": "نظارت مالک",
+    "subtitle": "بررسی فعالیت‌ها و مدیریت دسترسی‌ها"
+  }
+}
