@@ -1,0 +1,1 @@
+async function a({isOnline:u,saveOffline:t,entity:e,action:f,data:i,onlineFn:n}){if(!u)return await t(e,f,i),{offline:!0};try{return{offline:!1,result:await n()}}catch(r){if(!r.status)return await t(e,f,i),{offline:!0};throw r}}export{a as w};
