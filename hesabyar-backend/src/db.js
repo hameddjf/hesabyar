@@ -43,11 +43,19 @@ if (isPostgres) {
 }
 
 /**
- * تبدیل placeholder سبک SQLite (`?`) به سبک Postgres (`$1`, `$2`, ...).
+ * تبدیل placeholder سبک SQLite (`?`) به سبک Postgres (`$1`, `$2`, ...)،
+ * و تبدیل تابع‌های SQLite-only به معادل Postgres.
+ *
+ * datetime('now') مخصوص SQLite هست و توی Postgres اصلاً چنین تابعی وجود
+ * نداره (خطای «function does not exist»/42883) — این ترجمه‌ی خودکار یعنی
+ * لازم نیست هر کوئری رو دستی توی هر فایل route پیدا و ویرایش کنم؛ همینجا
+ * یه‌بار برای همیشه حل می‌شه.
  */
 function toPgSql(sql) {
   let i = 0
-  return sql.replace(/\?/g, () => `$${++i}`)
+  return sql
+    .replace(/datetime\(\s*['"]now['"]\s*\)/gi, 'NOW()')
+    .replace(/\?/g, () => `$${++i}`)
 }
 
 /** یک ردیف (یا undefined) — معادل db.prepare(sql).get(...params) */
