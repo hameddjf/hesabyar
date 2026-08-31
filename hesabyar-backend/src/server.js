@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import path from 'path'
 import './db.js'
+import { runSeed } from './seed.js'
 import { scheduleBackups } from './lib/backup.js'
 import { verifyMailConfig } from './lib/mailer.js'
 
@@ -111,6 +112,12 @@ const PORT = process.env.PORT || 4000
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`✅ Hesabyar backend running on port ${PORT}`)
+    // ساخت خودکار کاربر/سوپرادمین پیش‌فرض اگه نباشن — چون توی پلن رایگان
+    // Render دسترسی Shell نیست تا کسی دستی «node src/seed.js» بزنه، این تنها
+    // راهیه که هاست‌های بدون Shell هم یه کاربر اولیه‌ی قابل‌لاگین داشته باشن.
+    // امن به اجرای مکرره (idempotent) — هر بار سرور بالا بیاد دوباره صدا زده
+    // می‌شه ولی چون از قبل چک می‌کنه، رکورد تکراری نمی‌سازه.
+    runSeed().catch((err) => console.error('⚠️  خطا در seed خودکار:', err.message))
     if (!process.env.ADMIN_ROUTE_SECRET) {
       console.warn('⚠️  ADMIN_ROUTE_SECRET در .env تنظیم نشده! از مقدار پیش‌فرض (ناامن) استفاده می‌شه.')
     }
