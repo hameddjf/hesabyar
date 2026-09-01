@@ -45,51 +45,61 @@ export function makeCrudRouter(table, columns, options = {}) {
     )
   }
 
-  router.get('/', async (req, res) => {
-    const rows = await dbAll(`SELECT * FROM ${table} WHERE company_id = ? ORDER BY updated_at DESC`, [req.user.companyId])
-    res.json(rows)
+  router.get('/', async (req, res, next) => {
+    try {
+      const rows = await dbAll(`SELECT * FROM ${table} WHERE company_id = ? ORDER BY updated_at DESC`, [req.user.companyId])
+      res.json(rows)
+    } catch (err) { next(err) }
   })
 
-  router.get('/:id', async (req, res) => {
-    const row = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
-    if (!row) return res.status(404).json({ error: 'یافت نشد' })
-    res.json(row)
+  router.get('/:id', async (req, res, next) => {
+    try {
+      const row = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
+      if (!row) return res.status(404).json({ error: 'یافت نشد' })
+      res.json(row)
+    } catch (err) { next(err) }
   })
 
-  router.post('/', async (req, res) => {
-    if (!validateBody(req, res, false)) return
-    const id = req.body.id || randomUUID()
-    const cols = ['id', 'company_id', ...columns]
-    const values = cols.map((c) => {
-      if (c === 'id') return id
-      if (c === 'company_id') return req.user.companyId
-      return req.body[toCamel(c)] ?? null
-    })
-    const placeholders = cols.map(() => '?').join(', ')
-    await dbRun(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`, values)
-    const row = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [id, req.user.companyId])
-    await log(req, 'create', id, row?.[labelField], null, null, row)
-    res.status(201).json(row)
+  router.post('/', async (req, res, next) => {
+    try {
+      if (!validateBody(req, res, false)) return
+      const id = req.body.id || randomUUID()
+      const cols = ['id', 'company_id', ...columns]
+      const values = cols.map((c) => {
+        if (c === 'id') return id
+        if (c === 'company_id') return req.user.companyId
+        return req.body[toCamel(c)] ?? null
+      })
+      const placeholders = cols.map(() => '?').join(', ')
+      await dbRun(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`, values)
+      const row = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [id, req.user.companyId])
+      await log(req, 'create', id, row?.[labelField], null, null, row)
+      res.status(201).json(row)
+    } catch (err) { next(err) }
   })
 
-  router.put('/:id', async (req, res) => {
-    if (!validateBody(req, res, true)) return
-    const existing = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
-    if (!existing) return res.status(404).json({ error: 'یافت نشد' })
-    const setClause = columns.map((c) => `${c} = ?`).join(', ') + ", updated_at = datetime('now')"
-    const values = columns.map((c) => req.body[toCamel(c)] ?? existing[c])
-    await dbRun(`UPDATE ${table} SET ${setClause} WHERE id = ? AND company_id = ?`, [...values, req.params.id, req.user.companyId])
-    const row = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
-    await log(req, 'update', req.params.id, row?.[labelField], null, existing, row)
-    res.json(row)
+  router.put('/:id', async (req, res, next) => {
+    try {
+      if (!validateBody(req, res, true)) return
+      const existing = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
+      if (!existing) return res.status(404).json({ error: 'یافت نشد' })
+      const setClause = columns.map((c) => `${c} = ?`).join(', ') + ", updated_at = datetime('now')"
+      const values = columns.map((c) => req.body[toCamel(c)] ?? existing[c])
+      await dbRun(`UPDATE ${table} SET ${setClause} WHERE id = ? AND company_id = ?`, [...values, req.params.id, req.user.companyId])
+      const row = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
+      await log(req, 'update', req.params.id, row?.[labelField], null, existing, row)
+      res.json(row)
+    } catch (err) { next(err) }
   })
 
-  router.delete('/:id', async (req, res) => {
-    const existing = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
-    const info = await dbRun(`DELETE FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
-    if (info.changes === 0) return res.status(404).json({ error: 'یافت نشد' })
-    await log(req, 'delete', req.params.id, existing?.[labelField], null, existing, null)
-    res.status(204).end()
+  router.delete('/:id', async (req, res, next) => {
+    try {
+      const existing = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
+      const info = await dbRun(`DELETE FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
+      if (info.changes === 0) return res.status(404).json({ error: 'یافت نشد' })
+      await log(req, 'delete', req.params.id, existing?.[labelField], null, existing, null)
+      res.status(204).end()
+    } catch (err) { next(err) }
   })
 
   return router

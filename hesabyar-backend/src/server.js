@@ -4,6 +4,21 @@ import dotenv from 'dotenv'
 import path from 'path'
 import './db.js'
 import { runSeed } from './seed.js'
+
+/**
+ * شبکه‌ی ایمنی سطح پراسس — اگه یه Promise رد بشه و هیچ‌جا catch نشه (مثلاً
+ * یه باگ توی یه route که فراموش شده try/catch داشته باشه)، پیش‌فرض Node
+ * از نسخه‌های اخیر اینه که کل پراسس رو می‌کشه — یعنی یه خطای کوچیک توی یک
+ * درخواست، سرور رو برای همه‌ی کاربرها آفلاین می‌کنه (دقیقاً همون اتفاقی که
+ * افتاد: خطای یک INSERT، کل سرویس رو خاموش کرد). این‌جا فقط لاگ می‌کنیم و
+ * زنده می‌مونیم — تنها همون یک درخواست fail می‌شه، نه کل سرور.
+ */
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️  Unhandled Promise Rejection (سرور زنده موند، فقط همین درخواست fail شد):', reason)
+})
+process.on('uncaughtException', (err) => {
+  console.error('⚠️  Uncaught Exception (سرور زنده موند):', err)
+})
 import { scheduleBackups } from './lib/backup.js'
 import { verifyMailConfig } from './lib/mailer.js'
 

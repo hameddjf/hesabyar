@@ -829,6 +829,34 @@ CREATE INDEX IF NOT EXISTS idx_invoice_reminder_invoice  ON invoice_reminder_log
 
 if (isPostgres) {
   await dbExec(POSTGRES_SCHEMA)
+
+  /* همون migration که SQLite برای ستون‌های اضافه‌شده بعد از اولین ریلیز داره،
+     معادل Postgres‌ش — اینجا خیلی ساده‌تره چون Postgres خودش
+     «ADD COLUMN IF NOT EXISTS» رو بومی پشتیبانی می‌کنه، نیازی به چک دستی نیست.
+     این بلاک دقیقاً باید با safeAddColumn زیر (نسخه‌ی SQLite) هم‌قدم بمونه —
+     هر ستونی اونجا اضافه شد، اینجا هم اضافه کن. */
+  await dbExec(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_attempts INTEGER DEFAULT 0;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_hash TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions_json TEXT;
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS items_json TEXT;
+    ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS table_name TEXT;
+    ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS before_json TEXT;
+    ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS after_json TEXT;
+    ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS rolled_back INTEGER DEFAULT 0;
+  `)
+
+  await dbRun(
+    "UPDATE users SET permissions_json = ? WHERE role = 'employee' AND permissions_json IS NULL",
+    [JSON.stringify({
+      clients: true, products: true, invoices: true, payments: true,
+      employees: true, banking_accounts: true, partners: true, reports: true,
+      canDelete: true,
+    })]
+  )
 } else {
   db.exec(SQLITE_SCHEMA)
 
