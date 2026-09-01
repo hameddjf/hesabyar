@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import fs from 'fs/promises'
-import db from '../db.js'
+import { dbGet, dbAll, dbRun } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
 import { HOLO_TABLE_MAP, holoRowToHesabyar, hesabyarRowToHolo } from '../lib/holoSchema.js'
 import { connectToHolo, readHoloTable, upsertHoloRow, closeHolo } from '../lib/holoConnector.js'
@@ -31,10 +31,11 @@ const upload = multer({
   },
 })
 
-function logSync(companyId, direction, entity, count, status, message = '') {
-  db.prepare(
-    'INSERT INTO holo_sync_log (company_id, direction, entity, records_count, status, message) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(companyId, direction, entity, count, status, message)
+async function logSync(companyId, direction, entity, count, status, message = '') {
+  await dbRun(
+    'INSERT INTO holo_sync_log (company_id, direction, entity, records_count, status, message) VALUES (?, ?, ?, ?, ?, ?)',
+    [companyId, direction, entity, count, status, message]
+  )
 }
 
 function connErrorResponse(res, err) {
@@ -130,7 +131,7 @@ router.post('/local-restore/import', upload.single('backup'), async (req, res) =
     }
     res.json({ status: 'ok', imported: results })
   } catch (err) {
-    logSync(companyId, 'import', 'unknown', 0, 'error', err.message)
+    await logSync(companyId, 'import', 'unknown', 0, 'error', err.message)
     res.status(500).json({
       error: 'خطا هنگام Restore/خوندن فایل بکاپ',
       detail: err.message,
@@ -151,8 +152,8 @@ router.get('/tables', (req, res) => {
   res.json(info)
 })
 
-router.get('/log', (req, res) => {
-  const rows = db.prepare('SELECT * FROM holo_sync_log WHERE company_id = ? ORDER BY created_at DESC LIMIT 100').all(req.user.companyId)
+router.get('/log', async (req, res) => {
+  const rows = await dbAll('SELECT * FROM holo_sync_log WHERE company_id = ? ORDER BY created_at DESC LIMIT 100', [req.user.companyId])
   res.json(rows)
 })
 
@@ -192,15 +193,15 @@ router.post('/import', async (req, res) => {
       for (const holoRow of rows) {
         const mapped = holoRowToHesabyar(holoTable, holoRow)
         if (!mapped) continue
-        upsertHesabyarRow(schema.hesabyarTable, mapped, companyId)
+        await upsertHesabyarRow(schema.hesabyarTable, mapped, companyId)
         count++
       }
       results[schema.hesabyarTable] = count
-      logSync(companyId, 'import', schema.hesabyarTable, count, 'success')
+      await logSync(companyId, 'import', schema.hesabyarTable, count, 'success')
     }
     res.json({ status: 'ok', imported: results })
   } catch (err) {
-    logSync(companyId, 'import', 'unknown', 0, 'error', err.message)
+    await logSync(companyId, 'import', 'unknown', 0, 'error', err.message)
     res.status(500).json({ error: 'خطا هنگام import از هلو', detail: err.message })
   } finally {
     await closeHolo(pool)
@@ -223,7 +224,7 @@ router.post('/export', async (req, res) => {
   try {
     for (const [holoTable, schema] of Object.entries(HOLO_TABLE_MAP)) {
       if (!schema.hesabyarTable || !targetEntities.includes(schema.hesabyarTable)) continue
-      const rows = db.prepare(`SELECT * FROM ${schema.hesabyarTable} WHERE company_id = ?`).all(companyId)
+      const rows = await dbAll(`SELECT * FROM ${schema.hesabyarTable} WHERE company_id = ?`, [companyId])
       let count = 0
       for (const row of rows) {
         const holoRow = hesabyarRowToHolo(holoTable, row)
@@ -231,11 +232,11 @@ router.post('/export', async (req, res) => {
         count++
       }
       results[schema.hesabyarTable] = count
-      logSync(companyId, 'export', schema.hesabyarTable, count, 'success')
+      await logSync(companyId, 'export', schema.hesabyarTable, count, 'success')
     }
     res.json({ status: 'ok', exported: results })
   } catch (err) {
-    logSync(companyId, 'export', 'unknown', 0, 'error', err.message)
+    await logSync(companyId, 'export', 'unknown', 0, 'error', err.message)
     res.status(500).json({ error: 'خطا هنگام export به هلو', detail: err.message })
   } finally {
     await closeHolo(pool)
@@ -243,20 +244,19 @@ router.post('/export', async (req, res) => {
 })
 
 /** insert-or-update ساده روی جداول SQLite حسابیار بر اساس id — همیشه محدود به company_id فعلی */
-function upsertHesabyarRow(table, row, companyId) {
+async function upsertHesabyarRow(table, row, companyId) {
   const cols = Object.keys(row).filter((c) => c !== 'source')
-  const existing = row.id ? db.prepare(`SELECT id FROM ${table} WHERE id = ? AND company_id = ?`).get(row.id, companyId) : null
+  const existing = row.id ? await dbGet(`SELECT id FROM ${table} WHERE id = ? AND company_id = ?`, [row.id, companyId]) : null
   const finalRow = { ...row, id: row.id || String(row.id ?? Date.now()) }
 
   if (existing) {
     const setClause = cols.filter((c) => c !== 'id').map((c) => `${c} = ?`).join(', ')
     const values = cols.filter((c) => c !== 'id').map((c) => finalRow[c])
-    db.prepare(`UPDATE ${table} SET ${setClause}, updated_at = datetime('now') WHERE id = ? AND company_id = ?`).run(...values, finalRow.id, companyId)
+    await dbRun(`UPDATE ${table} SET ${setClause}, updated_at = datetime('now') WHERE id = ? AND company_id = ?`, [...values, finalRow.id, companyId])
   } else {
     const insertCols = ['company_id', 'source', ...cols]
     const placeholders = insertCols.map(() => '?').join(', ')
-    db.prepare(`INSERT INTO ${table} (${insertCols.join(', ')}) VALUES (${placeholders})`)
-      .run(companyId, 'holo', ...cols.map((c) => finalRow[c]))
+    await dbRun(`INSERT INTO ${table} (${insertCols.join(', ')}) VALUES (${placeholders})`, [companyId, 'holo', ...cols.map((c) => finalRow[c])])
   }
 }
 

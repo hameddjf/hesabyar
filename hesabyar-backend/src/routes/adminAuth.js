@@ -2,7 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
-import db from '../db.js'
+import { dbGet, dbRun } from '../db.js'
 import { sendMail } from '../lib/mailer.js'
 
 const router = Router()
@@ -25,7 +25,7 @@ function generateOtp() {
  */
 router.post('/login', async (req, res) => {
   const { email, password } = req.body || {}
-  const admin = db.prepare('SELECT * FROM super_admins WHERE email = ?').get(email)
+  const admin = await dbGet('SELECT * FROM super_admins WHERE email = ?', [email])
 
   if (!admin) return res.status(401).json({ error: 'ایمیل یا رمز عبور اشتباه است' })
 
@@ -40,16 +40,14 @@ router.post('/login', async (req, res) => {
     const lockedUntil = attempts >= MAX_ATTEMPTS
       ? new Date(Date.now() + LOCK_MINUTES * 60000).toISOString()
       : null
-    db.prepare('UPDATE super_admins SET failed_attempts = ?, locked_until = ? WHERE id = ?')
-      .run(attempts, lockedUntil, admin.id)
+    await dbRun('UPDATE super_admins SET failed_attempts = ?, locked_until = ? WHERE id = ?', [attempts, lockedUntil, admin.id])
     return res.status(401).json({ error: 'ایمیل یا رمز عبور اشتباه است' })
   }
 
   const otp = generateOtp()
   const otpHash = bcrypt.hashSync(otp, 8)
   const expires = new Date(Date.now() + OTP_TTL_MINUTES * 60000).toISOString()
-  db.prepare('UPDATE super_admins SET otp_code_hash = ?, otp_expires = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?')
-    .run(otpHash, expires, admin.id)
+  await dbRun('UPDATE super_admins SET otp_code_hash = ?, otp_expires = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?', [otpHash, expires, admin.id])
 
   await sendMail({
     to: admin.email,
@@ -61,9 +59,9 @@ router.post('/login', async (req, res) => {
   res.json({ step: '2fa_required', pendingEmail: admin.email })
 })
 
-router.post('/verify-2fa', (req, res) => {
+router.post('/verify-2fa', async (req, res) => {
   const { email, otp } = req.body || {}
-  const admin = db.prepare('SELECT * FROM super_admins WHERE email = ?').get(email)
+  const admin = await dbGet('SELECT * FROM super_admins WHERE email = ?', [email])
   if (!admin || !admin.otp_code_hash || !admin.otp_expires) {
     return res.status(401).json({ error: 'ابتدا مرحله ورود با رمز عبور را انجام دهید' })
   }
@@ -74,8 +72,7 @@ router.post('/verify-2fa', (req, res) => {
     return res.status(401).json({ error: 'کد نادرست است' })
   }
 
-  db.prepare('UPDATE super_admins SET otp_code_hash = NULL, otp_expires = NULL, last_login_at = datetime(\'now\') WHERE id = ?')
-    .run(admin.id)
+  await dbRun("UPDATE super_admins SET otp_code_hash = NULL, otp_expires = NULL, last_login_at = datetime('now') WHERE id = ?", [admin.id])
 
   const token = jwt.sign(
     { id: admin.id, name: admin.name, email: admin.email, type: 'super_admin' },

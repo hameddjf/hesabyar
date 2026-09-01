@@ -66,7 +66,7 @@ router.post('/register', async (req, res) => {
 
   const user = { id: info.lastInsertRowid, name, email, role: 'owner', companyId }
   const token = signUserToken(user)
-  res.json({ user: { ...user, perms: getEffectivePermissions(user) }, company: { id: companyId, name: companyName || `${name} - شرکت`, plan: 'free', status: 'trial' }, token })
+  res.json({ user: { ...user, perms: await getEffectivePermissions(user) }, company: { id: companyId, name: companyName || `${name} - شرکت`, plan: 'free', status: 'trial' }, token })
 })
 
 router.post('/login', async (req, res) => {
@@ -107,7 +107,7 @@ router.post('/login', async (req, res) => {
 
   const user = { id: row.id, name: row.name, email: row.email, role: row.role, companyId: row.company_id }
   const token = signUserToken(user)
-  res.json({ user: { ...user, perms: getEffectivePermissions(user) }, company: { id: company.id, name: company.name, plan: company.plan, status: company.status }, token })
+  res.json({ user: { ...user, perms: await getEffectivePermissions(user) }, company: { id: company.id, name: company.name, plan: company.plan, status: company.status }, token })
 })
 
 router.post('/forgot-password', async (req, res) => {
@@ -167,7 +167,7 @@ router.post('/reset-password', async (req, res) => {
 router.get('/me', requireAuth, async (req, res) => {
   const row = await dbGet('SELECT id, name, email, role, phone FROM users WHERE id = ?', [req.user.id])
   if (!row) return res.status(404).json({ error: 'کاربر یافت نشد' })
-  res.json({ ...row, perms: getEffectivePermissions(req.user) })
+  res.json({ ...row, perms: await getEffectivePermissions(req.user) })
 })
 
 router.patch('/me', requireAuth, async (req, res) => {

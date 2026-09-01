@@ -1,4 +1,4 @@
-import db from '../db.js'
+import { dbAll, dbRun } from '../db.js'
 import { sendMail } from './mailer.js'
 
 /** چند روز مونده به سررسید، آستانه‌ی «نزدیکه» فعال بشه */
@@ -24,26 +24,25 @@ function daysBetween(a, b) {
  * یادآوری‌شون در همون آستانه فرستاده نشده (چک با invoice_reminder_log).
  * فقط فاکتورهای pending/overdue با due_date معتبر ISO در نظر گرفته می‌شن.
  */
-export function findInvoicesNeedingReminder(now = new Date(), companyId = null) {
+export async function findInvoicesNeedingReminder(now = new Date(), companyId = null) {
   const invoices = companyId
-    ? db.prepare(`
+    ? await dbAll(`
         SELECT i.id, i.company_id, i.invoice_number, i.due_date, i.grand_total, i.client_id,
                c.name AS client_name, c.email AS client_email
         FROM invoices i
         LEFT JOIN clients c ON c.id = i.client_id
         WHERE i.status IN ('pending', 'overdue') AND i.company_id = ?
-      `).all(companyId)
-    : db.prepare(`
+      `, [companyId])
+    : await dbAll(`
         SELECT i.id, i.company_id, i.invoice_number, i.due_date, i.grand_total, i.client_id,
                c.name AS client_name, c.email AS client_email
         FROM invoices i
         LEFT JOIN clients c ON c.id = i.client_id
         WHERE i.status IN ('pending', 'overdue')
-      `).all()
+      `)
 
-  const alreadySent = new Set(
-    db.prepare('SELECT invoice_id || \':\' || threshold AS k FROM invoice_reminder_log').all().map(r => r.k)
-  )
+  const alreadySentRows = await dbAll("SELECT invoice_id || ':' || threshold AS k FROM invoice_reminder_log")
+  const alreadySent = new Set(alreadySentRows.map(r => r.k))
 
   const due = []
   for (const inv of invoices) {
@@ -77,13 +76,8 @@ function buildReminderText(inv) {
  * نتیجه رو برمی‌گردونه تا مسیر HTTP یا تست بتونه ببینه چند مورد پردازش شد.
  */
 export async function runInvoiceDueReminders(now = new Date(), companyId = null) {
-  const due = findInvoicesNeedingReminder(now, companyId)
+  const due = await findInvoicesNeedingReminder(now, companyId)
   const results = []
-
-  const insertLog = db.prepare(`
-    INSERT INTO invoice_reminder_log (company_id, invoice_id, threshold, email_sent)
-    VALUES (?, ?, ?, ?)
-  `)
 
   for (const inv of due) {
     let emailSent = false
@@ -101,7 +95,10 @@ export async function runInvoiceDueReminders(now = new Date(), companyId = null)
     // UNIQUE(invoice_id, threshold) دومین محافظ در برابر ارسال تکراری هم هست
     // (مثلاً اگه دو تا اجرای موازی هم‌زمان به این نقطه برسن).
     try {
-      insertLog.run(inv.company_id, inv.id, inv.threshold, emailSent ? 1 : 0)
+      await dbRun(
+        'INSERT INTO invoice_reminder_log (company_id, invoice_id, threshold, email_sent) VALUES (?, ?, ?, ?)',
+        [inv.company_id, inv.id, inv.threshold, emailSent ? 1 : 0]
+      )
     } catch {
       continue // از قبل ثبت شده بود، این مورد رو نادیده بگیر
     }

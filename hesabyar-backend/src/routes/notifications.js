@@ -1,11 +1,11 @@
 import { Router } from 'express'
-import db from '../db.js'
+import { dbAll } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 router.use(requireAuth)
 
-const WINDOW_DAYS = 7 // چند روز مونده به سررسید هشدار بدیم
+const WINDOW_DAYS = 7
 
 function parseISOStrict(str) {
   if (!str || !/^\d{4}-\d{2}-\d{2}/.test(str)) return null
@@ -13,25 +13,18 @@ function parseISOStrict(str) {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
-/**
- * اعلان‌های سررسید — کاملاً live محاسبه می‌شه (بدون جدول جدا)، از روی:
- * ۱) فاکتورهای pending با due_date نزدیک یا گذشته
- * ۲) پرداختی‌های چکی (check_number) با check_date نزدیک یا گذشته که هنوز done نشدن
- * فقط رکوردهایی که تاریخ ISO معتبر دارن حساب می‌شن (رکوردهای قدیمی با فرمت آزاد نادیده گرفته می‌شن).
- */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const companyId = req.user.companyId
   const now = new Date()
   const windowEnd = new Date(now.getTime() + WINDOW_DAYS * 86400000)
 
-  const invoices = db.prepare(`
+  const invoices = await dbAll(`
     SELECT id, invoice_number, due_date, grand_total, client_id, status
     FROM invoices WHERE company_id = ? AND status IN ('pending','overdue')
-  `).all(companyId)
+  `, [companyId])
 
-  const clientsById = Object.fromEntries(
-    db.prepare('SELECT id, name FROM clients WHERE company_id = ?').all(companyId).map(c => [c.id, c.name])
-  )
+  const clientRows = await dbAll('SELECT id, name FROM clients WHERE company_id = ?', [companyId])
+  const clientsById = Object.fromEntries(clientRows.map(c => [c.id, c.name]))
 
   const invoiceAlerts = invoices.map(inv => {
     const d = parseISOStrict(inv.due_date)
@@ -48,11 +41,11 @@ router.get('/', (req, res) => {
     }
   }).filter(Boolean)
 
-  const checks = db.prepare(`
+  const checks = await dbAll(`
     SELECT id, check_number, due_date, amount, description, status, direction
     FROM checks
     WHERE company_id = ? AND status IN ('in_hand','deposited','passed_on')
-  `).all(companyId)
+  `, [companyId])
 
   const newCheckAlerts = checks.map(c => {
     const d = parseISOStrict(c.due_date)
@@ -69,12 +62,11 @@ router.get('/', (req, res) => {
     }
   }).filter(Boolean)
 
-  // چک‌های قدیمی که مستقیم روی payments ثبت شدن (قبل از وجود ماژول دسته چک) هم همچنان نشون داده می‌شن
-  const legacyChecks = db.prepare(`
+  const legacyChecks = await dbAll(`
     SELECT id, check_number, check_date, amount, description, status
     FROM payments
     WHERE company_id = ? AND check_number IS NOT NULL AND check_number != '' AND status != 'done'
-  `).all(companyId)
+  `, [companyId])
 
   const checkAlerts = legacyChecks.map(p => {
     const d = parseISOStrict(p.check_date)

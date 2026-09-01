@@ -1,14 +1,15 @@
 import { Router } from 'express'
 import { randomUUID } from 'crypto'
-import db from '../db.js'
+import { dbGet, dbAll, dbRun } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireModuleAccess } from './permissions.js'
 
 /**
- * factory CRUD روی یک جدول SQLite با ایزوله‌سازی خودکار بر اساس company_id.
- * هر کاربر فقط دیتای همون شرکتی که بهش تعلق داره رو می‌بینه/می‌نویسه —
- * company_id همیشه از توکن JWT (req.user.companyId) میاد، هرگز از body
- * (تا کسی نتونه با دستکاری body دیتای شرکت دیگه رو بخونه/بنویسه).
+ * factory CRUD روی یک جدول (SQLite لوکال یا Postgres پروداکشن) با
+ * ایزوله‌سازی خودکار بر اساس company_id. هر کاربر فقط دیتای همون شرکتی که
+ * بهش تعلق داره رو می‌بینه/می‌نویسه — company_id همیشه از توکن JWT
+ * (req.user.companyId) میاد، هرگز از body (تا کسی نتونه با دستکاری body
+ * دیتای شرکت دیگه رو بخونه/بنویسه).
  *
  * اگه options.permissionModule پر بشه، علاوه بر لاگین‌بودن، دسترسی
  * ریزدانه‌ی کاربر به این ماژول هم چک می‌شه (owner/admin همیشه دسترسی کامل
@@ -22,7 +23,7 @@ export function makeCrudRouter(table, columns, options = {}) {
   }
   const logEntity = options.logEntity || null
   const labelField = options.labelField || columns[0]
-  const schema = options.schema || null // Zod schema اختیاری برای اعتبارسنجی body در create/update
+  const schema = options.schema || null
 
   function validateBody(req, res, partial) {
     if (!schema) return true
@@ -35,28 +36,27 @@ export function makeCrudRouter(table, columns, options = {}) {
     return true
   }
 
-  function log(req, action, entityId, label, detail, before, after) {
+  async function log(req, action, entityId, label, detail, before, after) {
     if (!logEntity) return
-    db.prepare(
-      'INSERT INTO activity_log (company_id, user_id, user_name, action, entity, entity_id, entity_label, detail, table_name, before_json, after_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(
-      req.user.companyId, req.user.id, req.user.name, action, logEntity, entityId, label || null, detail || null,
-      table, before ? JSON.stringify(before) : null, after ? JSON.stringify(after) : null
+    await dbRun(
+      'INSERT INTO activity_log (company_id, user_id, user_name, action, entity, entity_id, entity_label, detail, table_name, before_json, after_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.user.companyId, req.user.id, req.user.name, action, logEntity, entityId, label || null, detail || null,
+        table, before ? JSON.stringify(before) : null, after ? JSON.stringify(after) : null]
     )
   }
 
-  router.get('/', (req, res) => {
-    const rows = db.prepare(`SELECT * FROM ${table} WHERE company_id = ? ORDER BY updated_at DESC`).all(req.user.companyId)
+  router.get('/', async (req, res) => {
+    const rows = await dbAll(`SELECT * FROM ${table} WHERE company_id = ? ORDER BY updated_at DESC`, [req.user.companyId])
     res.json(rows)
   })
 
-  router.get('/:id', (req, res) => {
-    const row = db.prepare(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`).get(req.params.id, req.user.companyId)
+  router.get('/:id', async (req, res) => {
+    const row = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
     if (!row) return res.status(404).json({ error: 'یافت نشد' })
     res.json(row)
   })
 
-  router.post('/', (req, res) => {
+  router.post('/', async (req, res) => {
     if (!validateBody(req, res, false)) return
     const id = req.body.id || randomUUID()
     const cols = ['id', 'company_id', ...columns]
@@ -66,29 +66,29 @@ export function makeCrudRouter(table, columns, options = {}) {
       return req.body[toCamel(c)] ?? null
     })
     const placeholders = cols.map(() => '?').join(', ')
-    db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`).run(...values)
-    const row = db.prepare(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`).get(id, req.user.companyId)
-    log(req, 'create', id, row?.[labelField], null, null, row)
+    await dbRun(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`, values)
+    const row = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [id, req.user.companyId])
+    await log(req, 'create', id, row?.[labelField], null, null, row)
     res.status(201).json(row)
   })
 
-  router.put('/:id', (req, res) => {
+  router.put('/:id', async (req, res) => {
     if (!validateBody(req, res, true)) return
-    const existing = db.prepare(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`).get(req.params.id, req.user.companyId)
+    const existing = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
     if (!existing) return res.status(404).json({ error: 'یافت نشد' })
     const setClause = columns.map((c) => `${c} = ?`).join(', ') + ", updated_at = datetime('now')"
     const values = columns.map((c) => req.body[toCamel(c)] ?? existing[c])
-    db.prepare(`UPDATE ${table} SET ${setClause} WHERE id = ? AND company_id = ?`).run(...values, req.params.id, req.user.companyId)
-    const row = db.prepare(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`).get(req.params.id, req.user.companyId)
-    log(req, 'update', req.params.id, row?.[labelField], null, existing, row)
+    await dbRun(`UPDATE ${table} SET ${setClause} WHERE id = ? AND company_id = ?`, [...values, req.params.id, req.user.companyId])
+    const row = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
+    await log(req, 'update', req.params.id, row?.[labelField], null, existing, row)
     res.json(row)
   })
 
-  router.delete('/:id', (req, res) => {
-    const existing = db.prepare(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`).get(req.params.id, req.user.companyId)
-    const info = db.prepare(`DELETE FROM ${table} WHERE id = ? AND company_id = ?`).run(req.params.id, req.user.companyId)
+  router.delete('/:id', async (req, res) => {
+    const existing = await dbGet(`SELECT * FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
+    const info = await dbRun(`DELETE FROM ${table} WHERE id = ? AND company_id = ?`, [req.params.id, req.user.companyId])
     if (info.changes === 0) return res.status(404).json({ error: 'یافت نشد' })
-    log(req, 'delete', req.params.id, existing?.[labelField], null, existing, null)
+    await log(req, 'delete', req.params.id, existing?.[labelField], null, existing, null)
     res.status(204).end()
   })
 

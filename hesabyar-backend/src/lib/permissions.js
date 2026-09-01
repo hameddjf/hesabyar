@@ -1,17 +1,4 @@
-import db from '../db.js'
-
-/**
- * دسترسی‌های ریزدانه (RBAC ماژول‌محور).
- *
- * قوانین:
- *   - owner و admin همیشه دسترسی کامل دارن — این‌ها هیچ‌وقت از permissions_json خونده نمی‌شن.
- *   - employee فقط به ماژول‌هایی دسترسی داره که توی permissions_json خودش true باشه.
- *   - حذف (DELETE) یک اجازه‌ی جدا و سخت‌گیرانه‌تره: حتی اگه کارمند به یک ماژول
- *     دسترسی «مشاهده/ویرایش» داشته باشه، برای حذف باید canDelete هم true باشه.
- *
- * این‌جا از دیتابیس تازه می‌خونیم (نه از خود JWT) تا وقتی مالک دسترسی یک کارمند
- * رو عوض می‌کنه، بدون نیاز به لاگین دوباره‌ی اون کارمند، فوراً اعمال بشه.
- */
+import { dbGet } from '../db.js'
 
 export const MODULES = [
   { key: 'clients', label: 'مشتریان' },
@@ -55,12 +42,12 @@ function emptyAccess() {
 }
 
 /** دسترسی‌های واقعیِ اعمال‌شونده برای یک کاربر (owner/admin = کامل، employee = از دیتابیس) */
-export function getEffectivePermissions(user) {
+export async function getEffectivePermissions(user) {
   if (!user) return emptyAccess()
   if (user.role === 'owner' || user.role === 'admin') return fullAccess()
 
-  const row = db.prepare('SELECT permissions_json FROM users WHERE id = ?').get(user.id)
-  if (!row || !row.permissions_json) return emptyAccess() // پیش‌فرض امن: بدون تنظیم صریح، دسترسی نداره
+  const row = await dbGet('SELECT permissions_json FROM users WHERE id = ?', [user.id])
+  if (!row || !row.permissions_json) return emptyAccess()
   try {
     const parsed = JSON.parse(row.permissions_json)
     return { ...emptyAccess(), ...parsed }
@@ -69,7 +56,7 @@ export function getEffectivePermissions(user) {
   }
 }
 
-/** برای فیلدی که به کلاینت برمی‌گرده (لیست کاربران توی تنظیمات) */
+/** برای فیلدی که به کلاینت برمی‌گرده (لیست کاربران توی تنظیمات) — روی یک ردیف از‌قبل‌خونده‌شده کار می‌کنه، پس sync می‌مونه */
 export function permissionsForResponse(userRow) {
   if (userRow.role === 'owner' || userRow.role === 'admin') return fullAccess()
   if (!userRow.permissions_json) return emptyAccess()
@@ -80,7 +67,6 @@ export function permissionsForResponse(userRow) {
   }
 }
 
-/** ورودی permissions از کلاینت رو پاک‌سازی می‌کنه (فقط کلیدهای شناخته‌شده، فقط boolean) */
 export function sanitizePermissionsInput(input) {
   const safe = emptyAccess()
   if (!input || typeof input !== 'object') return safe
@@ -92,19 +78,12 @@ export function sanitizePermissionsInput(input) {
 
 /**
  * میان‌افزار Express: قبل از هر route ای که به یک ماژول خاص مربوطه استفاده می‌شه.
- * باید بعد از requireAuth بیاد (به req.user نیاز داره).
- *
- * options.readableForReports: اگه true باشه، درخواست‌های GET (فقط خواندن) علاوه بر
- * perms[moduleKey]، با perms.reports هم عبور داده می‌شن. دلیل: صفحه‌ی گزارش‌ها
- * (useReportsData.js در فرانت) مستقیماً از endpoint های invoices/payments/clients/partners
- * می‌خونه تا نمودارها رو بسازه — یک endpoint تجمیعی جدا نداریم. بدون این گزینه، پریست
- * «بیننده» (فقط reports:true) با ۴۰۳ روی همین fetch های زیرین گیر می‌کنه و کل صفحه‌ی
- * گزارش‌ها خراب می‌شه. نوشتن (POST/PUT/DELETE) همچنان فقط با perms[moduleKey] واقعی
- * مجازه — این گزینه هرگز اجازه‌ی تغییر داده نمی‌ده، فقط مشاهده.
+ * async هست چون getEffectivePermissions حالا دیتابیس رو async می‌خونه — Express
+ * منتظر برگشتن Promise می‌مونه چون next()/res.json() از داخل همون تابع صدا زده می‌شن.
  */
 export function requireModuleAccess(moduleKey, options = {}) {
-  return (req, res, next) => {
-    const perms = getEffectivePermissions(req.user)
+  return async (req, res, next) => {
+    const perms = await getEffectivePermissions(req.user)
     const hasDirectAccess = !!perms[moduleKey]
     const hasReadViaReports = options.readableForReports && req.method === 'GET' && !!perms.reports
     if (!hasDirectAccess && !hasReadViaReports) {
